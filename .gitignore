@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-ssr/
+*.log
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+*.local
+*.tmp
+
+# Keep the requested demo database in the repository.
+!backend/prisma/dev.db

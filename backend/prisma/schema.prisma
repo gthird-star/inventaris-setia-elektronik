@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  username     String   @unique
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         String
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+}
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  contactName String?  @map("contact_name")
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  sku           String   @unique
+  barcode       String?
+  name          String
+  categoryId    Int      @map("category_id")
+
+  brand         String?
+  modelName     String?
+  description   String?
+  unit          String
+  purchasePrice Float    @map("purchase_price")
+  sellingPrice  Float    @map("selling_price")
+  minimumStock Int      @map("minimum_stock")
+  currentStock  Int      @map("current_stock")
+  location      String?
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+
+}
+
+model StockTransaction {
+  id                Int      @id @default(autoincrement())
+  transactionNumber String   @unique @map("transaction_number")
+  transactionType   String   @map("transaction_type")
+  transactionDate   DateTime @map("transaction_date")
+  supplierId        Int?    @map("supplier_id")
+
+  referenceNumber   String?  @map("reference_number")
+  notes             String?
+  status            String
+  createdById       Int      @map("created_by")
+
+  confirmedById     Int?    @map("confirmed_by")
+
+  confirmedAt       DateTime? @map("confirmed_at")
+  reversalOfId      Int?    @map("reversal_of_transaction_id")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+
+}
+
+model StockTransactionItem {
+  id            Int      @id @default(autoincrement())
+  transactionId Int     @map("transaction_id")
+
+  productId     Int      @map("product_id")
+
+  quantity      Int
+  unitCost      Float    @map("unit_cost")
+  unitPrice     Float    @map("unit_price")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+}
+
+model StockMovement {
+  id               Int      @id @default(autoincrement())
+  productId        Int      @map("product_id")
+
+  transactionId    Int      @map("transaction_id")
+
+  transactionItemId Int      @map("transaction_item_id")
+
+  movementType     String   @map("movement_type")
+  quantityIn      Int?     @map("quantity_in")
+  quantityOut     Int?     @map("quantity_out")
+  balanceBefore   Int      @map("balance_before")
+  balanceAfter    Int      @map("balance_after")
+  createdById     Int      @map("created_by")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+}
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    Int      @map("entity_id")
+  description String?
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+}
