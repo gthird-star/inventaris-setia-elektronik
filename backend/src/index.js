@@ -436,17 +436,53 @@ app.get('/reports/stock', auth(['admin', 'petugas']), async (req, res) => {
 });
 // dashboard summary (admin & petugas)
 app.get('/dashboard/summary', auth(['admin', 'petugas']), async (req, res) => {
+    const period = req.query.period === 'today' || req.query.period === 'week' || req.query.period === 'month' ? req.query.period : 'month';
+    const now = new Date();
+    const start = new Date(now);
+    if (period === 'today')
+        start.setHours(0, 0, 0, 0);
+    if (period === 'week') {
+        start.setDate(now.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+    }
+    if (period === 'month') {
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+    }
     const totalProducts = await prisma.product.count({ where: { isActive: true } });
     const totalUnits = await prisma.product.aggregate({
         _sum: { currentStock: true },
     });
     const products = await prisma.product.findMany({
         where: { isActive: true },
-        select: { currentStock: true, minimumStock: true },
+        select: { id: true, name: true, sku: true, currentStock: true, minimumStock: true, purchasePrice: true },
     });
     const lowStock = products.filter((product) => product.currentStock <= product.minimumStock).length;
     const outOfStock = await prisma.product.count({ where: { currentStock: 0 } });
-    res.json({ totalProducts, totalUnits: totalUnits._sum.currentStock, lowStock, outOfStock });
+    const movements = await prisma.stockMovement.findMany({
+        where: { createdAt: { gte: start, lte: now } },
+        select: { transactionId: true, productId: true, movementType: true, quantityIn: true, quantityOut: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+    });
+    const transactionIds = [...new Set(movements.map((movement) => movement.transactionId))];
+    const transactions = transactionIds.length ? await prisma.stockTransaction.findMany({
+        where: { id: { in: transactionIds } },
+        select: { id: true, transactionNumber: true, transactionType: true, status: true, transactionDate: true },
+    }) : [];
+    const transactionById = new Map(transactions.map((transaction) => [transaction.id, transaction]));
+    const productById = new Map(products.map((product) => [product.id, product]));
+    const recentTransactions = movements.slice(0, 6).map((movement) => ({
+        transactionNumber: transactionById.get(movement.transactionId)?.transactionNumber || '-',
+        transactionType: movement.movementType,
+        status: transactionById.get(movement.transactionId)?.status || 'confirmed',
+        productName: productById.get(movement.productId)?.name || 'Produk',
+        quantity: movement.quantityIn || movement.quantityOut || 0,
+        createdAt: movement.createdAt,
+    }));
+    const stockIn = movements.reduce((sum, movement) => sum + (movement.quantityIn || 0), 0);
+    const stockOut = movements.reduce((sum, movement) => sum + (movement.quantityOut || 0), 0);
+    const stockValue = products.reduce((sum, product) => sum + product.currentStock * product.purchasePrice, 0);
+    res.json({ period, totalProducts, totalUnits: totalUnits._sum.currentStock || 0, lowStock, outOfStock, stockIn, stockOut, stockValue, recentTransactions });
 });
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
